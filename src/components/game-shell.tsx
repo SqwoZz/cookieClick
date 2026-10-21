@@ -26,23 +26,40 @@ import { Input } from "@/components/ui/input";
 import { WelcomeGate } from "@/components/welcome-gate";
 import { cn } from "@/lib/utils";
 import { validateDisplayName } from "@/lib/name-filter";
-} from "lucide-react";
 
 // 🔊 ЗВУК ПРИ КЛИКЕ
+let audioContext: AudioContext | null = null;
+
 function playClickSound() {
   try {
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-    const a = new AudioCtx();
-    const o = a.createOscillator();
-    const g = a.createGain();
+
+    // Создаём контекст ОДИН раз
+    if (!audioContext) {
+      audioContext = new AudioCtx();
+    }
+
+    // Возобновляем, если браузер приостановил
+    if (audioContext.state === 'suspended') {
+      audioContext.resume();
+    }
+
+    const o = audioContext.createOscillator();
+    const g = audioContext.createGain();
+
     o.connect(g);
-    g.connect(a.destination);
+    g.connect(audioContext.destination);
+
     o.frequency.value = 600 + Math.random() * 300;
     o.type = "sine";
-    g.gain.setValueAtTime(0.25, a.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.08);
-    o.start(a.currentTime);
-    o.stop(a.currentTime + 0.08);
+
+    g.gain.setValueAtTime(0.25, audioContext.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.08);
+
+    o.start(audioContext.currentTime);
+    o.stop(audioContext.currentTime + 0.08);
+  } catch {}
+}
   } catch {}
 }
   BarChart3,
