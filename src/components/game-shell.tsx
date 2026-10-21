@@ -1,5 +1,4 @@
 'use client';
-
 import {
   ADMIN_PASSWORD,
   COOKIE_EMOJIS,
@@ -26,42 +25,7 @@ import { Input } from "@/components/ui/input";
 import { WelcomeGate } from "@/components/welcome-gate";
 import { cn } from "@/lib/utils";
 import { validateDisplayName } from "@/lib/name-filter";
-
-// 🔊 ЗВУК ПРИ КЛИКЕ
-let audioContext: AudioContext | null = null;
-
-function playClickSound() {
-  try {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-
-    // Создаём контекст ОДИН раз
-    if (!audioContext) {
-      audioContext = new AudioCtx();
-    }
-
-    // Возобновляем, если браузер приостановил
-    if (audioContext.state === 'suspended') {
-      audioContext.resume();
-    }
-
-    const o = audioContext.createOscillator();
-    const g = audioContext.createGain();
-
-    o.connect(g);
-    g.connect(audioContext.destination);
-
-    o.frequency.value = 600 + Math.random() * 300;
-    o.type = "sine";
-
-    g.gain.setValueAtTime(0.25, audioContext.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.08);
-
-    o.start(audioContext.currentTime);
-    o.stop(audioContext.currentTime + 0.08);
-  } catch {}
-}
-  } catch {}
-}
+import {
   BarChart3,
   Coins,
   Cookie,
@@ -93,21 +57,37 @@ import {
   useSyncExternalStore,
 } from "react";
 
-// 🔊 ЗВУК ПРИ КЛИКЕ
+// 🔊 ЗВУК ПРИ КЛИКЕ — стабильная версия для телефона и ПК
+let audioContext: AudioContext | null = null;
+
 function playClickSound() {
   try {
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-    const a = new AudioCtx();
-    const o = a.createOscillator();
-    const g = a.createGain();
+
+    // Создаём контекст ОДИН раз, а не при каждом клике
+    if (!audioContext) {
+      audioContext = new AudioCtx();
+    }
+
+    // Возобновляем, если браузер приостановил звук
+    if (audioContext.state === 'suspended') {
+      audioContext.resume();
+    }
+
+    const o = audioContext.createOscillator();
+    const g = audioContext.createGain();
+
     o.connect(g);
-    g.connect(a.destination);
+    g.connect(audioContext.destination);
+
     o.frequency.value = 600 + Math.random() * 300;
     o.type = "sine";
-    g.gain.setValueAtTime(0.25, a.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.08);
-    o.start(a.currentTime);
-    o.stop(a.currentTime + 0.08);
+
+    g.gain.setValueAtTime(0.25, audioContext.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.08);
+
+    o.start(audioContext.currentTime);
+    o.stop(audioContext.currentTime + 0.08);
   } catch {}
 }
 
@@ -129,7 +109,6 @@ const COOKIE_SIZE_STYLES: Record<
   normal: { button: "size-52 sm:size-60", emoji: "text-8xl sm:text-9xl" },
   large: { button: "size-64 sm:size-80", emoji: "text-[7rem] sm:text-[10rem]" },
 };
-
 const emptySubscribe = () => () => {};
 function useMounted() {
   return useSyncExternalStore(
@@ -138,13 +117,11 @@ function useMounted() {
     () => false
   );
 }
-
 export function GameShell() {
   const api = useClickerGame();
   const [active, setActive] = useState<TabId>("game");
   const [adminUnlocked, setAdminUnlocked] = useState(false);
   const [nameGate, setNameGate] = useState<NameGate>("checking");
-
   useEffect(() => {
     const timer = setTimeout(() => {
       let saved = "";
@@ -157,7 +134,6 @@ export function GameShell() {
     }, 0);
     return () => clearTimeout(timer);
   }, []);
-
   return (
     <div className="w-full max-w-3xl">
       {active === "game" && <GamePanel api={api} />}
@@ -188,7 +164,6 @@ export function GameShell() {
     </div>
   );
 }
-
 type Pop = { id: number; x: number; y: number; text: string };
 function GamePanel({ api }: { api: ClickerGameApi }) {
   const game = api.game;
@@ -198,10 +173,8 @@ function GamePanel({ api }: { api: ClickerGameApi }) {
   const click = perClick(game);
   const cps = perSecond(game);
   const size = COOKIE_SIZE_STYLES[game.cookieSize];
-
   function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
     playClickSound(); // 🔊 ЗВУК ПРИ КЛИКЕ
-
     const rect = event.currentTarget.getBoundingClientRect();
     const id = ++popId.current;
     api.click();
@@ -218,7 +191,6 @@ function GamePanel({ api }: { api: ClickerGameApi }) {
       setPops((prev) => prev.filter((p) => p.id !== id));
     }, 900);
   }
-
   function handleBuy(item: Upgrade) {
     api.buy(item);
     setJustBought(item.key);
@@ -226,7 +198,6 @@ function GamePanel({ api }: { api: ClickerGameApi }) {
       setJustBought((key) => (key === item.key ? null : key));
     }, 400);
   }
-
   return (
     <div className="grid animate-panel-in items-start gap-8 md:grid-cols-[1fr_320px]">
       <section className="flex flex-col items-center gap-6 md:pt-6">
@@ -305,7 +276,6 @@ function GamePanel({ api }: { api: ClickerGameApi }) {
           </p>
         )}
       </section>
-
       <section className="rounded-2xl border bg-card p-4 shadow-sm">
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           <Cookie className="size-4" /> Магазин улучшений
@@ -362,7 +332,6 @@ function GamePanel({ api }: { api: ClickerGameApi }) {
     </div>
   );
 }
-
 type LeaderboardData = {
   entries: { name: string; score: number }[];
   total: number;
@@ -376,7 +345,6 @@ function LeaderboardPanel({ game }: { game: GameState }) {
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [messageError, setMessageError] = useState(false);
-
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/leaderboard");
@@ -388,12 +356,10 @@ function LeaderboardPanel({ game }: { game: GameState }) {
       setLoadState("error");
     }
   }, []);
-
   useEffect(() => {
     const timer = setTimeout(() => void load(), 0);
     return () => clearTimeout(timer);
   }, [load]);
-
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
@@ -403,7 +369,6 @@ function LeaderboardPanel({ game }: { game: GameState }) {
     }, 0);
     return () => clearTimeout(timer);
   }, []);
-
   function handleNameChange(event: React.ChangeEvent<HTMLInputElement>) {
     const value = event.target.value.slice(0, 24);
     setName(value);
@@ -413,7 +378,6 @@ function LeaderboardPanel({ game }: { game: GameState }) {
       } catch {}
     }
   }
-
   async function handleSubmit() {
     const trimmed = name.trim();
     if (!trimmed || sending) return;
@@ -450,7 +414,6 @@ function LeaderboardPanel({ game }: { game: GameState }) {
       setSending(false);
     }
   }
-
   const ownName = name.trim().toLowerCase();
   return (
     <section className="animate-panel-in space-y-4">
@@ -585,7 +548,6 @@ function LeaderboardPanel({ game }: { game: GameState }) {
     </section>
   );
 }
-
 function StatsPanel({ game }: { game: GameState }) {
   const upgradesBought = totalUpgrades(game);
   const stats: { label: string; value: string }[] = [
@@ -630,7 +592,6 @@ function StatsPanel({ game }: { game: GameState }) {
     </section>
   );
 }
-
 const THEME_OPTIONS = [
   { id: "light", label: "Светлая", icon: Sun },
   { id: "dark", label: "Тёмная", icon: Moon },
@@ -706,7 +667,6 @@ function SettingsPanel({ onReset }: { onReset: () => void }) {
     </section>
   );
 }
-
 const POINT_PRESETS = [
   { amount: 1_000, label: "+1 тыс" },
   { amount: 100_000, label: "+100 тыс" },
@@ -730,7 +690,6 @@ function AdminPanel({
   if (!unlocked) return <AdminLogin onUnlock={onUnlock} />;
   return <AdminControls api={api} onLock={onLock} onReset={onReset} />;
 }
-
 function AdminLogin({ onUnlock }: { onUnlock: () => void }) {
   const [value, setValue] = useState("");
   const [attempts, setAttempts] = useState(0);
@@ -790,7 +749,6 @@ function AdminLogin({ onUnlock }: { onUnlock: () => void }) {
     </section>
   );
 }
-
 function AdminControls({
   api,
   onLock,
@@ -807,7 +765,6 @@ function AdminControls({
   const [clearingBoard, setClearingBoard] = useState(false);
   const [boardMessage, setBoardMessage] = useState<string | null>(null);
   const [boardError, setBoardError] = useState(false);
-
   async function clearBoard() {
     if (clearingBoard) return;
     if (!window.confirm("Удалить ВСЕ результаты из лидерборда?")) return;
@@ -833,7 +790,6 @@ function AdminControls({
       setClearingBoard(false);
     }
   }
-
   return (
     <section className="animate-panel-in space-y-4">
       <div className="flex items-center justify-between gap-3 rounded-2xl border bg-card p-4 shadow-sm">
@@ -1057,7 +1013,6 @@ function AdminControls({
     </section>
   );
 }
-
 function TabBar({
   active,
   onChange,
