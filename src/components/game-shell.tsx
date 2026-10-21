@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
   ADMIN_PASSWORD,
@@ -27,22 +27,7 @@ import { WelcomeGate } from "@/components/welcome-gate";
 import { cn } from "@/lib/utils";
 import { validateDisplayName } from "@/lib/name-filter";
 import {
-function playClickSound() {
-  try {
-    const a = new (window.AudioContext || window.webkitAudioContext)();
-    const o = a.createOscillator();
-    const g = a.createGain();
-    o.connect(g);
-    g.connect(a.destination);
-    o.frequency.value = 600 + Math.random() * 300;
-    o.type = "sine";
-    g.gain.setValueAtTime(0.1, a.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.08);
-    o.start(a.currentTime);
-    o.stop(a.currentTime + 0.08);
-  } catch {}
-}
-   BarChart3,
+  BarChart3,
   Coins,
   Cookie,
   Database,
@@ -73,6 +58,24 @@ import {
   useSyncExternalStore,
 } from "react";
 
+// 🔊 ЗВУК ПРИ КЛИКЕ
+function playClickSound() {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    const a = new AudioCtx();
+    const o = a.createOscillator();
+    const g = a.createGain();
+    o.connect(g);
+    g.connect(a.destination);
+    o.frequency.value = 600 + Math.random() * 300;
+    o.type = "sine";
+    g.gain.setValueAtTime(0.25, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.08);
+    o.start(a.currentTime);
+    o.stop(a.currentTime + 0.08);
+  } catch {}
+}
+
 const TABS = [
   { id: "game", label: "Игра", icon: Gamepad2 },
   { id: "leaders", label: "Лидеры", icon: Trophy },
@@ -80,13 +83,9 @@ const TABS = [
   { id: "settings", label: "Настройки", icon: Settings },
   { id: "admin", label: "Админ", icon: Shield },
 ] as const;
-
 type TabId = (typeof TABS)[number]["id"];
-
 type NameGate = "checking" | "open" | "closed";
-
 const MEDALS = ["🥇", "🥈", "🥉"] as const;
-
 const COOKIE_SIZE_STYLES: Record<
   CookieSize,
   { button: string; emoji: string }
@@ -97,9 +96,6 @@ const COOKIE_SIZE_STYLES: Record<
 };
 
 const emptySubscribe = () => () => {};
-
-// False during SSR and the hydration render, true afterwards. Lets us show
-// theme-dependent UI without a hydration mismatch.
 function useMounted() {
   return useSyncExternalStore(
     emptySubscribe,
@@ -114,8 +110,6 @@ export function GameShell() {
   const [adminUnlocked, setAdminUnlocked] = useState(false);
   const [nameGate, setNameGate] = useState<NameGate>("checking");
 
-  // First visit without a saved nickname (and not skipped) -> show the
-  // welcome question. Deferred so hydration stays deterministic.
   useEffect(() => {
     const timer = setTimeout(() => {
       let saved = "";
@@ -123,9 +117,7 @@ export function GameShell() {
       try {
         saved = (localStorage.getItem(NAME_STORAGE_KEY) ?? "").trim();
         skipped = localStorage.getItem(NAME_SKIP_KEY) === "1";
-      } catch {
-        // Storage unavailable — ask for the name every visit.
-      }
+      } catch {}
       setNameGate(saved.length > 0 || skipped ? "closed" : "open");
     }, 0);
     return () => clearTimeout(timer);
@@ -163,7 +155,6 @@ export function GameShell() {
 }
 
 type Pop = { id: number; x: number; y: number; text: string };
-
 function GamePanel({ api }: { api: ClickerGameApi }) {
   const game = api.game;
   const [pops, setPops] = useState<Pop[]>([]);
@@ -174,8 +165,8 @@ function GamePanel({ api }: { api: ClickerGameApi }) {
   const size = COOKIE_SIZE_STYLES[game.cookieSize];
 
   function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
-  playClickSound(); // 🔊 ЗВУК — ВОТ СЮДА ДОБАВИЛ!
-    
+    playClickSound(); // 🔊 ЗВУК ПРИ КЛИКЕ
+
     const rect = event.currentTarget.getBoundingClientRect();
     const id = ++popId.current;
     api.click();
@@ -203,7 +194,6 @@ function GamePanel({ api }: { api: ClickerGameApi }) {
 
   return (
     <div className="grid animate-panel-in items-start gap-8 md:grid-cols-[1fr_320px]">
-      {/* Clicker */}
       <section className="flex flex-col items-center gap-6 md:pt-6">
         <div className="relative">
           <div className="motion-safe:animate-cookie-idle">
@@ -236,7 +226,6 @@ function GamePanel({ api }: { api: ClickerGameApi }) {
             </span>
           ))}
         </div>
-
         <div className="text-center">
           <p className="text-4xl font-bold tabular-nums tracking-tight sm:text-5xl">
             {format(game.points)}
@@ -255,7 +244,6 @@ function GamePanel({ api }: { api: ClickerGameApi }) {
             </p>
           )}
         </div>
-
         <div className="grid w-full max-w-xs grid-cols-3 divide-x divide-border rounded-xl border bg-card text-center shadow-sm">
           <div className="px-2 py-3">
             <p className="text-lg font-semibold tabular-nums">{format(click)}</p>
@@ -276,7 +264,6 @@ function GamePanel({ api }: { api: ClickerGameApi }) {
             </p>
           </div>
         </div>
-
         {game.totalClicks === 0 && (
           <p className="text-sm font-medium text-muted-foreground">
             Нажми на печеньку!
@@ -284,7 +271,6 @@ function GamePanel({ api }: { api: ClickerGameApi }) {
         )}
       </section>
 
-      {/* Shop */}
       <section className="rounded-2xl border bg-card p-4 shadow-sm">
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           <Cookie className="size-4" /> Магазин улучшений
@@ -334,7 +320,6 @@ function GamePanel({ api }: { api: ClickerGameApi }) {
             );
           })}
         </ul>
-
         <p className="mt-4 border-t pt-3 text-xs text-muted-foreground">
           Прогресс сохраняется автоматически
         </p>
@@ -347,9 +332,7 @@ type LeaderboardData = {
   entries: { name: string; score: number }[];
   total: number;
 };
-
 type LoadState = "loading" | "ready" | "error";
-
 function LeaderboardPanel({ game }: { game: GameState }) {
   const [data, setData] = useState<LeaderboardData | null>(null);
   const [loadState, setLoadState] = useState<LoadState>("loading");
@@ -372,20 +355,15 @@ function LeaderboardPanel({ game }: { game: GameState }) {
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      void load();
-    }, 0);
+    const timer = setTimeout(() => void load(), 0);
     return () => clearTimeout(timer);
   }, [load]);
 
-  // Deferred load of the saved nickname so hydration stays deterministic.
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
         setName(localStorage.getItem(NAME_STORAGE_KEY) ?? "");
-      } catch {
-        // Storage unavailable — the field just starts empty.
-      }
+      } catch {}
       setNameLoaded(true);
     }, 0);
     return () => clearTimeout(timer);
@@ -397,9 +375,7 @@ function LeaderboardPanel({ game }: { game: GameState }) {
     if (nameLoaded) {
       try {
         localStorage.setItem(NAME_STORAGE_KEY, value);
-      } catch {
-        // Storage unavailable — name just won't persist.
-      }
+      } catch {}
     }
   }
 
@@ -424,9 +400,7 @@ function LeaderboardPanel({ game }: { game: GameState }) {
         }),
       });
       const json = (await res.json()) as { rank?: number | null; error?: string };
-      if (!res.ok) {
-        throw new Error(json.error ?? "Не удалось отправить результат");
-      }
+      if (!res.ok) throw new Error(json.error ?? "Не удалось отправить результат");
       setMessage(
         typeof json.rank === "number" && json.rank > 0
           ? `Результат отправлен! Вы на ${json.rank} месте.`
@@ -443,7 +417,6 @@ function LeaderboardPanel({ game }: { game: GameState }) {
   }
 
   const ownName = name.trim().toLowerCase();
-
   return (
     <section className="animate-panel-in space-y-4">
       <div className="rounded-2xl border bg-card p-4 shadow-sm">
@@ -497,7 +470,6 @@ function LeaderboardPanel({ game }: { game: GameState }) {
           </p>
         )}
       </div>
-
       <div className="rounded-2xl border bg-card p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
@@ -520,25 +492,21 @@ function LeaderboardPanel({ game }: { game: GameState }) {
             Обновить
           </Button>
         </div>
-
         {loadState === "loading" && (
           <p className="py-6 text-center text-sm text-muted-foreground">
             Загружаем лидерборд…
           </p>
         )}
-
         {loadState === "error" && (
           <p className="py-6 text-center text-sm text-muted-foreground">
             Не удалось загрузить лидерборд. Попробуйте ещё раз.
           </p>
         )}
-
         {loadState === "ready" && data && data.entries.length === 0 && (
           <p className="py-6 text-center text-sm text-muted-foreground">
             Пока никто не отправил результат. Станьте первым!
           </p>
         )}
-
         {loadState === "ready" && data && data.entries.length > 0 && (
           <ol className="space-y-1.5">
             {data.entries.map((entry, index) => {
@@ -573,7 +541,6 @@ function LeaderboardPanel({ game }: { game: GameState }) {
             })}
           </ol>
         )}
-
         {loadState === "ready" && data && data.total > data.entries.length && (
           <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">
             Показаны лучшие {data.entries.length} из {data.total} игроков
@@ -586,7 +553,6 @@ function LeaderboardPanel({ game }: { game: GameState }) {
 
 function StatsPanel({ game }: { game: GameState }) {
   const upgradesBought = totalUpgrades(game);
-
   const stats: { label: string; value: string }[] = [
     { label: "Баланс", value: format(game.points) },
     { label: "Сделано кликов", value: format(game.totalClicks) },
@@ -598,7 +564,6 @@ function StatsPanel({ game }: { game: GameState }) {
   if (game.multiplier > 1) {
     stats.push({ label: "Множитель", value: `×${formatRate(game.multiplier)}` });
   }
-
   return (
     <section className="animate-panel-in space-y-4">
       <div className="rounded-2xl border bg-card p-6 text-center shadow-sm">
@@ -615,7 +580,6 @@ function StatsPanel({ game }: { game: GameState }) {
           за всё время
         </p>
       </div>
-
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {stats.map((stat, index) => (
           <div
@@ -637,12 +601,10 @@ const THEME_OPTIONS = [
   { id: "dark", label: "Тёмная", icon: Moon },
   { id: "system", label: "Системная", icon: Monitor },
 ] as const;
-
 function SettingsPanel({ onReset }: { onReset: () => void }) {
   const { theme, setTheme } = useTheme();
   const mounted = useMounted();
   const activeTheme = mounted ? (theme ?? "system") : "system";
-
   return (
     <section className="animate-panel-in space-y-4">
       <div className="rounded-2xl border bg-card p-4 shadow-sm">
@@ -673,7 +635,6 @@ function SettingsPanel({ onReset }: { onReset: () => void }) {
           })}
         </div>
       </div>
-
       <div className="rounded-2xl border bg-card p-4 shadow-sm">
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           <Database className="size-4" /> Данные
@@ -692,7 +653,6 @@ function SettingsPanel({ onReset }: { onReset: () => void }) {
           <RotateCcw className="size-4" /> Сбросить прогресс
         </Button>
       </div>
-
       <div className="rounded-2xl border bg-card p-4 shadow-sm">
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           <Cookie className="size-4" /> Об игре
@@ -719,7 +679,6 @@ const POINT_PRESETS = [
   { amount: 100_000_000, label: "+100 млн" },
   { amount: 1_000_000_000, label: "+1 млрд" },
 ] as const;
-
 function AdminPanel({
   api,
   unlocked,
@@ -733,9 +692,7 @@ function AdminPanel({
   onLock: () => void;
   onReset: () => void;
 }) {
-  if (!unlocked) {
-    return <AdminLogin onUnlock={onUnlock} />;
-  }
+  if (!unlocked) return <AdminLogin onUnlock={onUnlock} />;
   return <AdminControls api={api} onLock={onLock} onReset={onReset} />;
 }
 
@@ -743,7 +700,6 @@ function AdminLogin({ onUnlock }: { onUnlock: () => void }) {
   const [value, setValue] = useState("");
   const [attempts, setAttempts] = useState(0);
   const [error, setError] = useState(false);
-
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (value.trim() === ADMIN_PASSWORD) {
@@ -754,7 +710,6 @@ function AdminLogin({ onUnlock }: { onUnlock: () => void }) {
     setAttempts((n) => n + 1);
     setValue("");
   }
-
   return (
     <section className="animate-panel-in mx-auto max-w-sm pt-6">
       <form
@@ -829,9 +784,7 @@ function AdminControls({
         headers: { "x-admin-password": ADMIN_PASSWORD },
       });
       const json = (await res.json()) as { ok?: boolean; error?: string };
-      if (!res.ok) {
-        throw new Error(json.error ?? "Не удалось очистить лидерборд");
-      }
+      if (!res.ok) throw new Error(json.error ?? "Не удалось очистить лидерборд");
       setBoardMessage("Лидерборд очищен");
       setBoardError(false);
     } catch (err) {
@@ -860,16 +813,10 @@ function AdminControls({
             </p>
           </div>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onLock}
-        >
+        <Button type="button" variant="outline" size="sm" onClick={onLock}>
           <LockKeyhole className="size-4" /> Выйти
         </Button>
       </div>
-
       <div className="rounded-2xl border bg-card p-4 shadow-sm">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           <Coins className="size-4" /> Печеньки
@@ -917,11 +864,9 @@ function AdminControls({
           </div>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          Отрицательная сумма забирает печеньки, но баланс не уходит ниже
-          нуля.
+          Отрицательная сумма забирает печеньки, но баланс не уходит ниже нуля.
         </p>
       </div>
-
       <div className="rounded-2xl border bg-card p-4 shadow-sm">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           <Wrench className="size-4" /> Улучшения
@@ -940,16 +885,13 @@ function AdminControls({
             type="button"
             variant="destructive"
             onClick={() => {
-              if (window.confirm("Обнулить все улучшения?")) {
-                api.resetUpgrades();
-              }
+              if (window.confirm("Обнулить все улучшения?")) api.resetUpgrades();
             }}
           >
             Обнулить улучшения
           </Button>
         </div>
       </div>
-
       <div className="rounded-2xl border bg-card p-4 shadow-sm">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           <Zap className="size-4" /> Множитель дохода
@@ -979,7 +921,6 @@ function AdminControls({
           Влияет и на клик, и на пассивный доход.
         </p>
       </div>
-
       <div className="rounded-2xl border bg-card p-4 shadow-sm">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           <Palette className="size-4" /> Вид печеньки
@@ -1031,23 +972,19 @@ function AdminControls({
           })}
         </div>
       </div>
-
       <div className="rounded-2xl border bg-card p-4 shadow-sm">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           <Trophy className="size-4" /> Лидерборд
         </h3>
         <p className="text-sm text-muted-foreground">
-          Очистка удалит результаты всех игроков с сервера. Это действие
-          нельзя отменить.
+          Очистка удалит результаты всех игроков с сервера. Это действие нельзя отменить.
         </p>
         <Button
           type="button"
           variant="destructive"
           className="mt-3"
           disabled={clearingBoard}
-          onClick={() => {
-            void clearBoard();
-          }}
+          onClick={() => void clearBoard()}
         >
           {clearingBoard ? (
             <LoaderCircle className="size-4 animate-spin" aria-hidden />
@@ -1068,7 +1005,6 @@ function AdminControls({
           </p>
         )}
       </div>
-
       <div className="rounded-2xl border border-destructive/40 bg-card p-4 shadow-sm">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-destructive">
           <RotateCcw className="size-4" /> Опасная зона
