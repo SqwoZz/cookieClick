@@ -26,7 +26,25 @@ import { Input } from "@/components/ui/input";
 import { WelcomeGate } from "@/components/welcome-gate";
 import { cn } from "@/lib/utils";
 import { validateDisplayName } from "@/lib/name-filter";
-import {
+} from "lucide-react";
+
+// 🔊 ЗВУК ПРИ КЛИКЕ
+function playClickSound() {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    const a = new AudioCtx();
+    const o = a.createOscillator();
+    const g = a.createGain();
+    o.connect(g);
+    g.connect(a.destination);
+    o.frequency.value = 600 + Math.random() * 300;
+    o.type = "sine";
+    g.gain.setValueAtTime(0.25, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.08);
+    o.start(a.currentTime);
+    o.stop(a.currentTime + 0.08);
+  } catch {}
+}
   BarChart3,
   Coins,
   Cookie,
