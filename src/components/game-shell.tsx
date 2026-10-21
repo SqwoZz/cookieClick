@@ -63,13 +63,11 @@ function playClickSound() {
   } catch {}
 }
 
-// 🔐 Конфиг — твои данные
-const GIST_ID = process.env.NEXT_PUBLIC_GIST_ID || "ТВОЙ_GIST_ID";
-const GIST_FILENAME = "game-users.json";
-const GIST_API = "/api/gist-sync"; // наш прокси для гиста
+// 🔐 Конфиг
+const GIST_API = "/api/gist-sync";
 const SESSION_TOKEN_KEY = "game_session_token";
 
-// Типы данных в гисте
+// Типы данных
 type GistData = {
   users: Record<string, {
     passwordHash: string;
@@ -103,7 +101,7 @@ function LoginGate({ onSuccess }: { onSuccess: (username: string) => void }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isNew, setIsNew] = useState(false);
+  const [isNew, setIsNew] = useState(false); // ← было const, теперь useState
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -120,7 +118,7 @@ function LoginGate({ onSuccess }: { onSuccess: (username: string) => void }) {
 
     setLoading(true);
     try {
-      // 1. Получаем текущие данные из гиста
+      // Получаем данные из гиста
       const res = await fetch(`${GIST_API}?action=read`);
       if (!res.ok) throw new Error("Не удалось подключиться к облаку");
       
@@ -131,21 +129,20 @@ function LoginGate({ onSuccess }: { onSuccess: (username: string) => void }) {
       const passHash = await hashPassword(trimmedPass);
 
       if (userRecord) {
-        // Пользователь существует — проверяем пароль
+        // Проверка пароля
         if (userRecord.passwordHash !== passHash) {
           throw new Error("Неверный пароль");
         }
-        // Успешный вход
       } else {
-        // Автоматически создаём нового пользователя
+        // Создаём нового пользователя
         data.users[trimmedUser] = {
           passwordHash: passHash,
           progress: {},
           createdAt: Date.now()
         };
-        isNew = true;
+        setIsNew(true); // ← теперь работает корректно
         
-        // Сохраняем обновлённый гист
+        // Сохраняем в гист
         const saveRes = await fetch(GIST_API, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -232,7 +229,7 @@ export default function GameShell() {
   const [user, setUser] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
 
-  // Проверка сессии при загрузке
+  // Проверка сессии
   useEffect(() => {
     const token = getSessionToken();
     if (token) {
@@ -265,7 +262,6 @@ export default function GameShell() {
     return <LoginGate onSuccess={setUser} />;
   }
 
-  // ✅ Игра
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="p-4">
