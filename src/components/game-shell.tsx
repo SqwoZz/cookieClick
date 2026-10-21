@@ -262,23 +262,23 @@ export default function GameShell() {
     return <LoginGate onSuccess={setUser} />;
   }
 
-  return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="p-4">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <Database className="size-5 text-green-500" />
-            Игра — облачное хранилище
-          </h1>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">👤 {user}</span>
-            <Button variant="secondary" size="sm" onClick={handleLogout}>
-              Выйти
-            </Button>
-          </div>
+ return (
+  <main className="min-h-screen bg-background text-foreground">
+    <div className="p-4">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-xl font-bold flex items-center gap-2">
+          <Database className="size-5 text-green-500" />
+          Игра — облачное хранилище
+        </h1>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted-foreground">👤 {user}</span>
+          <Button variant="secondary" size="sm" onClick={handleLogout}>
+            Выйти
+          </Button>
         </div>
-        <WelcomeGate />
       </div>
-    </main>
-  );
+      <WelcomeGate />
+    </div>
+  </main>
+);
 }
