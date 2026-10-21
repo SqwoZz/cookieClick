@@ -1,16 +1,12 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
-
 import { ADMIN_PASSWORD } from "@/lib/admin";
 import { validateDisplayName } from "@/lib/name-filter";
 
 export const dynamic = "force-dynamic";
 
-// File-backed shared storage. Good enough for the preview: all visitors of this
-// deployment see the same board, data survives server restarts. On serverless
-// hosts with ephemeral disks it would need a real database instead.
-const DATA_DIR = path.join(process.cwd(), ".data");
-const DATA_FILE = path.join(DATA_DIR, "leaderboard.json");
+const GIST_ID = process.env.GIST_ID ?? "";
+const GIST_TOKEN = process.env.GIST_TOKEN ?? "";
+const GIST_FILENAME = "leaderboard.json";
+
 const MAX_ENTRIES = 100;
 const TOP_LISTED = 50;
 const MAX_NAME_LENGTH = 24;
@@ -22,7 +18,6 @@ export type LeaderboardEntry = {
   updatedAt: string;
 };
 
-// Simple flood guard: max 5 submissions per 10 seconds per client.
 const RATE_WINDOW_MS = 10_000;
 const RATE_MAX = 5;
 const recentPosts = new Map<string, number[]>();
@@ -58,51 +53,52 @@ function sanitizeScore(value: unknown): number | null {
   return Math.min(Math.floor(score), MAX_SCORE);
 }
 
-function sanitizeEntry(raw: unknown): LeaderboardEntry | null {
-  const source = (raw ?? {}) as Record<string, unknown>;
-  const name = sanitizeName(source.name);
-  const score = sanitizeScore(source.score);
-  // Stored entries with disallowed names are dropped on read too, so the
-  // board self-cleans.
-  if (!name || score === null || !validateDisplayName(name).ok) return null;
-  const updatedAt = new Date(source.updatedAt as string | number);
-  return {
-    name,
-    score,
-    updatedAt: Number.isNaN(updatedAt.getTime())
-      ? ""
-      : updatedAt.toISOString(),
-  };
-}
-
-async function readEntries(): Promise<LeaderboardEntry[]> {
-  try {
-    const raw = await fs.readFile(DATA_FILE, "utf8");
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    const entries: LeaderboardEntry[] = [];
-    for (const item of parsed) {
-      const entry = sanitizeEntry(item);
-      if (entry) entries.push(entry);
-    }
-    return entries;
-  } catch {
-    // Missing or corrupted file — start with an empty board.
-    return [];
-  }
-}
-
-async function writeEntries(entries: LeaderboardEntry[]): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  const tmp = `${DATA_FILE}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(entries, null, 2), "utf8");
-  await fs.rename(tmp, DATA_FILE);
-}
-
 function sortEntries(entries: LeaderboardEntry[]): void {
   entries.sort(
     (a, b) => b.score - a.score || a.name.localeCompare(b.name, "ru")
   );
+}
+
+// Чтение из GitHub Gist
+async function readEntries(): Promise<LeaderboardEntry[]> {
+  if (!GIST_ID || !GIST_TOKEN) return [];
+  
+  try {
+    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      headers: { Authorization: `token ${GIST_TOKEN}` },
+      next: { revalidate: 0 }
+    });
+    
+    if (!res.ok) return [];
+    const data = await res.json();
+    const file = data.files?.[GIST_FILENAME];
+    if (!file?.content) return [];
+    
+    const parsed: unknown = JSON.parse(file.content);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+// Запись в GitHub Gist
+async function writeEntries(entries: LeaderboardEntry[]): Promise<void> {
+  if (!GIST_ID || !GIST_TOKEN) return;
+  
+  await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `token ${GIST_TOKEN}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      files: {
+        [GIST_FILENAME]: {
+          content: JSON.stringify(entries, null, 2)
+        }
+      }
+    })
+  });
 }
 
 export async function GET() {
@@ -115,6 +111,13 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!GIST_ID || !GIST_TOKEN) {
+    return Response.json(
+      { error: "Хранилище не настроено" },
+      { status: 503 }
+    );
+  }
+
   if (isRateLimited(clientKey(request))) {
     return Response.json(
       { error: "Слишком часто. Подождите немного." },
@@ -128,15 +131,18 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ error: "Некорректный запрос" }, { status: 400 });
   }
+
   const source = (body ?? {}) as Record<string, unknown>;
   const name = sanitizeName(source.name);
   const score = sanitizeScore(source.score);
+
   if (!name || score === null) {
     return Response.json(
       { error: "Нужны имя и корректный счёт" },
       { status: 400 }
     );
   }
+
   const check = validateDisplayName(name);
   if (!check.ok) {
     return Response.json({ error: check.error }, { status: 400 });
@@ -144,9 +150,11 @@ export async function POST(request: Request) {
 
   const entries = await readEntries();
   const key = name.toLowerCase();
-  const existing = entries.find((entry) => entry.name.toLowerCase() === key);
+  const existing = entries.find(
+    (entry) => entry.name.toLowerCase() === key
+  );
+
   if (existing) {
-    // Keep the personal best, never lower an existing result.
     if (score > existing.score) {
       existing.score = score;
       existing.updatedAt = new Date().toISOString();
@@ -154,8 +162,12 @@ export async function POST(request: Request) {
   } else {
     entries.push({ name, score, updatedAt: new Date().toISOString() });
   }
+
   sortEntries(entries);
-  const rank = entries.findIndex((entry) => entry.name.toLowerCase() === key) + 1;
+  const rank = entries.findIndex(
+    (entry) => entry.name.toLowerCase() === key
+  ) + 1;
+
   await writeEntries(entries.slice(0, MAX_ENTRIES));
 
   return Response.json({ ok: true, rank: rank > 0 ? rank : null });
